@@ -60,28 +60,57 @@ local function button(parent, text, size, pos)
     return b
 end
 
-local function draggable(frame, handle)
-    local active, origin, start
-    local changedConnection
+local function draggableMain(frame, handle, dragLimit)
+    local dragging = false
+    local activeInput
+    local startPointer
+    local startCenter
+    local moveConnection
+    local endConnection
+
+    local function stopDragging()
+        dragging = false
+        activeInput = nil
+        if moveConnection then moveConnection:Disconnect(); moveConnection = nil end
+        if endConnection then endConnection:Disconnect(); endConnection = nil end
+    end
+
     handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            active, origin, start = true, input.Position, frame.Position
-            if changedConnection then changedConnection:Disconnect() end
-            changedConnection = input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then active = false end
-            end)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
         end
-    end)
-    local inputConnection = UserInputService.InputChanged:Connect(function(input)
-        if active and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local d = input.Position - origin
-            frame.Position = UDim2.new(start.X.Scale, start.X.Offset + d.X, start.Y.Scale, start.Y.Offset + d.Y)
+
+        if dragLimit then
+            local rightEdge = frame.AbsolutePosition.X + frame.AbsoluteSize.X - dragLimit
+            if input.Position.X >= rightEdge then return end
         end
+
+        dragging = true
+        activeInput = input
+        startPointer = input.Position
+        startCenter = Vector2.new(
+            frame.AbsolutePosition.X + frame.AbsoluteSize.X * frame.AnchorPoint.X,
+            frame.AbsolutePosition.Y + frame.AbsoluteSize.Y * frame.AnchorPoint.Y
+        )
+
+        moveConnection = UserInputService.InputChanged:Connect(function(changed)
+            if not dragging then return end
+            if changed.UserInputType == Enum.UserInputType.MouseMovement or
+                (activeInput and activeInput.UserInputType == Enum.UserInputType.Touch and changed == activeInput) then
+                local delta = changed.Position - startPointer
+                local center = startCenter + delta
+                frame.Position = UDim2.fromOffset(center.X, center.Y)
+            end
+        end)
+
+        endConnection = UserInputService.InputEnded:Connect(function(ended)
+            if ended == activeInput or ended.UserInputType == Enum.UserInputType.MouseButton1 then
+                stopDragging()
+            end
+        end)
     end)
-    frame.Destroying:Connect(function()
-        inputConnection:Disconnect()
-        if changedConnection then changedConnection:Disconnect() end
-    end)
+
+    frame.Destroying:Connect(stopDragging)
 end
 
 function MellWare:CreateWindow(options)
@@ -94,22 +123,22 @@ function MellWare:CreateWindow(options)
 
     local watermark = make("Frame", {
         Name = "Watermark", AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 16), Size = UDim2.fromOffset(292, 54),
+        Position = UDim2.new(0.5, 0, 0, 12), Size = UDim2.fromOffset(252, 46),
         BackgroundColor3 = C.BG, BorderSizePixel = 0
     }, screen)
     round(watermark, 18)
     outline(watermark, C.RedDark, 0.1)
 
-    local wmIcon = make("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(38, 38), BackgroundColor3 = C.RedDark, BorderSizePixel = 0}, watermark)
+    local wmIcon = make("Frame", {Position = UDim2.fromOffset(7, 7), Size = UDim2.fromOffset(32, 32), BackgroundColor3 = C.RedDark, BorderSizePixel = 0}, watermark)
     round(wmIcon, 13)
     make("UIGradient", {Color = ColorSequence.new(C.RedBright, C.RedDark), Rotation = 45}, wmIcon)
-    make("TextLabel", {BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "M", TextColor3 = C.Text, TextSize = 21, Font = Enum.Font.GothamBlack}, wmIcon)
+    make("TextLabel", {BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "M", TextColor3 = C.Text, TextSize = 18, Font = Enum.Font.GothamBlack}, wmIcon)
 
     local wmTitle = label(watermark, title, 14, C.Text, Enum.Font.GothamBold)
-    wmTitle.Position, wmTitle.Size = UDim2.fromOffset(56, 7), UDim2.new(1, -70, 0, 20)
+    wmTitle.Position, wmTitle.Size = UDim2.fromOffset(47, 5), UDim2.new(1, -67, 0, 18)
     local wmInvite = label(watermark, "discord.gg/JhzESdmNx", 11, C.Muted)
-    wmInvite.Position, wmInvite.Size = UDim2.fromOffset(56, 28), UDim2.new(1, -70, 0, 16)
-    local dot = make("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(7, 7), BackgroundColor3 = C.RedBright, BorderSizePixel = 0}, watermark)
+    wmInvite.Position, wmInvite.Size = UDim2.fromOffset(47, 22), UDim2.new(1, -67, 0, 15)
+    local dot = make("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(6, 6), BackgroundColor3 = C.RedBright, BorderSizePixel = 0}, watermark)
     round(dot, 9)
 
     local main = make("Frame", {
@@ -130,9 +159,9 @@ function MellWare:CreateWindow(options)
         local fitX = (viewport.X - 24) / 590
         local fitY = (viewport.Y - 110) / 380
         mainScale.Scale = math.clamp(math.min(1, fitX, fitY), 0.45, 1)
-        watermarkScale.Scale = math.clamp(math.min(1, (viewport.X - 24) / 292), 0.7, 1)
+        watermarkScale.Scale = math.clamp(math.min(1, (viewport.X - 24) / 252), 0.7, 1)
         main.Position = UDim2.fromScale(0.5, 0.5)
-        watermark.Position = UDim2.new(0.5, 0, 0, 12)
+        watermark.Position = UDim2.new(0.5, 0, 0, 10)
     end
 
     local viewportConnection
@@ -350,7 +379,7 @@ function MellWare:CreateWindow(options)
         title = tostring(value or "MellWare")
         wmTitle.Text = title
         crumb.Text = title .. " / " .. (activeTab or "Dashboard")
-    end
+end
 
     local minimized = false
     collapse.MouseButton1Click:Connect(function()
@@ -366,8 +395,7 @@ function MellWare:CreateWindow(options)
         end
     end)
 
-    draggable(main, top)
-    draggable(watermark, watermark)
+    draggableMain(main, top, 58)
 
     if options.KeySystem then
         main.Visible, watermark.Visible = false, false
