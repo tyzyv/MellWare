@@ -1,0 +1,407 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local MellWare = {Version = "1.0.0"}
+local C = {
+    BG = Color3.fromRGB(13, 13, 15),
+    Side = Color3.fromRGB(18, 18, 21),
+    Panel = Color3.fromRGB(25, 25, 29),
+    Hover = Color3.fromRGB(36, 36, 41),
+    Border = Color3.fromRGB(49, 49, 55),
+    Text = Color3.fromRGB(246, 246, 248),
+    Muted = Color3.fromRGB(157, 157, 165),
+    Red = Color3.fromRGB(224, 53, 68),
+    RedBright = Color3.fromRGB(245, 67, 82),
+    RedDark = Color3.fromRGB(105, 28, 38),
+    Green = Color3.fromRGB(100, 205, 137)
+}
+
+local function make(class, props, parent)
+    local obj = Instance.new(class)
+    for k, v in pairs(props or {}) do obj[k] = v end
+    obj.Parent = parent
+    return obj
+end
+
+local function round(obj, radius)
+    make("UICorner", {CornerRadius = UDim.new(0, radius or 10)}, obj)
+end
+
+local function outline(obj, color, transparency)
+    make("UIStroke", {Color = color or C.Border, Transparency = transparency or 0, Thickness = 1}, obj)
+end
+
+local function tw(obj, props, duration)
+    local anim = TweenService:Create(obj, TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props)
+    anim:Play()
+    return anim
+end
+
+local function label(parent, text, size, color, font)
+    return make("TextLabel", {
+        BackgroundTransparency = 1, Text = text or "", TextColor3 = color or C.Text,
+        TextSize = size or 13, Font = font or Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center
+    }, parent)
+end
+
+local function button(parent, text, size, pos)
+    local b = make("TextButton", {
+        AutoButtonColor = false, Text = text or "", TextColor3 = C.Text, TextSize = 12,
+        Font = Enum.Font.GothamBold, BackgroundColor3 = C.Panel, Size = size,
+        Position = pos, BorderSizePixel = 0
+    }, parent)
+    round(b, 9)
+    outline(b)
+    b.MouseEnter:Connect(function() tw(b, {BackgroundColor3 = C.Hover}) end)
+    b.MouseLeave:Connect(function() tw(b, {BackgroundColor3 = C.Panel}) end)
+    return b
+end
+
+local function draggable(frame, handle)
+    local active, origin, start
+    local changedConnection
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            active, origin, start = true, input.Position, frame.Position
+            if changedConnection then changedConnection:Disconnect() end
+            changedConnection = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then active = false end
+            end)
+        end
+    end)
+    local inputConnection = UserInputService.InputChanged:Connect(function(input)
+        if active and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local d = input.Position - origin
+            frame.Position = UDim2.new(start.X.Scale, start.X.Offset + d.X, start.Y.Scale, start.Y.Offset + d.Y)
+        end
+    end)
+    frame.Destroying:Connect(function()
+        inputConnection:Disconnect()
+        if changedConnection then changedConnection:Disconnect() end
+    end)
+end
+
+function MellWare:CreateWindow(options)
+    options = options or {}
+    local title = options.Title or "MellWare"
+    local old = PlayerGui:FindFirstChild("MellWareUI")
+    if old then old:Destroy() end
+
+    local screen = make("ScreenGui", {Name = "MellWareUI", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, PlayerGui)
+
+    local watermark = make("Frame", {
+        Name = "Watermark", AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 16), Size = UDim2.fromOffset(292, 54),
+        BackgroundColor3 = C.BG, BorderSizePixel = 0
+    }, screen)
+    round(watermark, 18)
+    outline(watermark, C.RedDark, 0.1)
+
+    local wmIcon = make("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(38, 38), BackgroundColor3 = C.RedDark, BorderSizePixel = 0}, watermark)
+    round(wmIcon, 13)
+    make("UIGradient", {Color = ColorSequence.new(C.RedBright, C.RedDark), Rotation = 45}, wmIcon)
+    make("TextLabel", {BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "M", TextColor3 = C.Text, TextSize = 21, Font = Enum.Font.GothamBlack}, wmIcon)
+
+    local wmTitle = label(watermark, title, 14, C.Text, Enum.Font.GothamBold)
+    wmTitle.Position, wmTitle.Size = UDim2.fromOffset(56, 7), UDim2.new(1, -70, 0, 20)
+    local wmInvite = label(watermark, "discord.gg/JhzESdmNx", 11, C.Muted)
+    wmInvite.Position, wmInvite.Size = UDim2.fromOffset(56, 28), UDim2.new(1, -70, 0, 16)
+    local dot = make("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(7, 7), BackgroundColor3 = C.RedBright, BorderSizePixel = 0}, watermark)
+    round(dot, 9)
+
+    local main = make("Frame", {
+        Name = "Main", AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(590, 380),
+        BackgroundColor3 = C.BG, BorderSizePixel = 0
+    }, screen)
+    round(main, 18)
+    outline(main, C.Border, 0.1)
+
+    local mainScale = make("UIScale", {Scale = 1}, main)
+    local watermarkScale = make("UIScale", {Scale = 1}, watermark)
+
+    local function updateResponsiveScale()
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+        local viewport = camera.ViewportSize
+        local fitX = (viewport.X - 24) / 590
+        local fitY = (viewport.Y - 110) / 380
+        mainScale.Scale = math.clamp(math.min(1, fitX, fitY), 0.45, 1)
+        watermarkScale.Scale = math.clamp(math.min(1, (viewport.X - 24) / 292), 0.7, 1)
+        main.Position = UDim2.fromScale(0.5, 0.5)
+        watermark.Position = UDim2.new(0.5, 0, 0, 12)
+    end
+
+    local viewportConnection
+    local function bindCamera()
+        if viewportConnection then viewportConnection:Disconnect() end
+        local camera = workspace.CurrentCamera
+        if camera then
+            viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveScale)
+        end
+        updateResponsiveScale()
+    end
+    bindCamera()
+    local cameraConnection = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
+    screen.Destroying:Connect(function()
+        if viewportConnection then viewportConnection:Disconnect() end
+        cameraConnection:Disconnect()
+    end)
+
+    local sidebar = make("Frame", {Size = UDim2.new(0, 64, 1, 0), BackgroundColor3 = C.Side, BorderSizePixel = 0}, main)
+    round(sidebar, 18)
+    make("Frame", {Position = UDim2.new(1, -18, 0, 0), Size = UDim2.new(0, 18, 1, 0), BackgroundColor3 = C.Side, BorderSizePixel = 0}, sidebar)
+
+    local logo = make("Frame", {Position = UDim2.fromOffset(12, 13), Size = UDim2.fromOffset(40, 40), BackgroundColor3 = C.RedDark, BorderSizePixel = 0}, sidebar)
+    round(logo, 13)
+    make("UIGradient", {Color = ColorSequence.new(C.RedBright, C.RedDark), Rotation = 45}, logo)
+    make("TextLabel", {BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "M", TextColor3 = C.Text, TextSize = 21, Font = Enum.Font.GothamBlack}, logo)
+
+    local nav = make("Frame", {Position = UDim2.fromOffset(8, 68), Size = UDim2.new(1, -16, 1, -80), BackgroundTransparency = 1}, sidebar)
+    make("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center}, nav)
+
+    local content = make("Frame", {Position = UDim2.fromOffset(64, 0), Size = UDim2.new(1, -64, 1, 0), BackgroundTransparency = 1}, main)
+    local top = make("Frame", {Size = UDim2.new(1, 0, 0, 67), BackgroundTransparency = 1}, content)
+    local crumb = label(top, title .. " / Dashboard", 11, C.Muted)
+    crumb.Position, crumb.Size = UDim2.fromOffset(18, 9), UDim2.new(1, -75, 0, 18)
+    local pageTitle = label(top, "Dashboard", 22, C.Text, Enum.Font.GothamBold)
+    pageTitle.Position, pageTitle.Size = UDim2.fromOffset(18, 28), UDim2.new(1, -75, 0, 29)
+    local collapse = button(top, "—", UDim2.fromOffset(36, 36), UDim2.new(1, -49, 0, 15))
+    collapse.TextSize = 18
+    collapse.BackgroundColor3 = C.Hover
+
+    local holder = make("Frame", {Position = UDim2.fromOffset(14, 67), Size = UDim2.new(1, -28, 1, -81), BackgroundTransparency = 1}, content)
+    local pages, navButtons = {}, {}
+    local activeTab
+
+    local function selectTab(name)
+        activeTab = name
+        for n, p in pairs(pages) do p.Visible = n == name end
+        for n, b in pairs(navButtons) do
+            local active = n == name
+            tw(b, {BackgroundColor3 = active and C.RedDark or C.Panel, TextColor3 = active and C.Text or C.Muted})
+            local bar = b:FindFirstChild("ActiveBar")
+            if bar then tw(bar, {BackgroundTransparency = active and 0 or 1}) end
+        end
+        pageTitle.Text = name
+        crumb.Text = title .. " / " .. name
+    end
+
+    local Window = {}
+    function Window:CreateTab(name, icon)
+        name = name or "Tab"
+        local nb = make("TextButton", {
+            Name = name .. "Button", AutoButtonColor = false, Text = icon or string.sub(name, 1, 1),
+            TextSize = 17, Font = Enum.Font.GothamBold, TextColor3 = C.Muted,
+            BackgroundColor3 = C.Panel, Size = UDim2.fromOffset(46, 43), BorderSizePixel = 0
+        }, nav)
+        round(nb, 13)
+        local activeBar = make("Frame", {Name = "ActiveBar", Position = UDim2.new(0, -5, 0.5, -11), Size = UDim2.fromOffset(3, 22), BackgroundColor3 = C.RedBright, BackgroundTransparency = 1, BorderSizePixel = 0}, nb)
+        round(activeBar, 3)
+
+        local page = make("ScrollingFrame", {
+            Name = name .. "Page", Size = UDim2.fromScale(1, 1), CanvasSize = UDim2.new(),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3,
+            ScrollBarImageColor3 = C.RedBright, BackgroundTransparency = 1,
+            BorderSizePixel = 0, Visible = false
+        }, holder)
+        make("UIListLayout", {Padding = UDim.new(0, 9), SortOrder = Enum.SortOrder.LayoutOrder}, page)
+        make("UIPadding", {PaddingTop = UDim.new(0, 1), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 1), PaddingRight = UDim.new(0, 4)}, page)
+        pages[name], navButtons[name] = page, nb
+        nb.MouseButton1Click:Connect(function() selectTab(name) end)
+
+        local Tab, order = {}, 0
+        local function row(height)
+            order += 1
+            local r = make("Frame", {Size = UDim2.new(1, -2, 0, height), BackgroundColor3 = C.Panel, BorderSizePixel = 0, LayoutOrder = order}, page)
+            round(r, 11)
+            outline(r, C.Border, 0.25)
+            return r
+        end
+
+        function Tab:CreateSection(text)
+            order += 1
+            local l = label(page, text or "Section", 13, C.Text, Enum.Font.GothamBold)
+            l.Size, l.LayoutOrder = UDim2.new(1, -4, 0, 22), order
+            return l
+        end
+
+        function Tab:CreateLabel(text)
+            order += 1
+            local l = label(page, text or "", 12, C.Muted)
+            l.Size, l.LayoutOrder = UDim2.new(1, -4, 0, 24), order
+            return l
+        end
+
+        function Tab:CreateButton(cfg)
+            cfg = type(cfg) == "table" and cfg or {Name = tostring(cfg)}
+            local r = row(48)
+            local l = label(r, cfg.Name or "Button", 13, C.Text, Enum.Font.GothamSemibold)
+            l.Position, l.Size = UDim2.fromOffset(13, 0), UDim2.new(1, -130, 1, 0)
+            local b = button(r, cfg.ButtonText or "Execute", UDim2.fromOffset(92, 30), UDim2.new(1, -105, 0.5, -15))
+            b.MouseButton1Click:Connect(function() if cfg.Callback then task.spawn(cfg.Callback) end end)
+            return r
+        end
+
+        function Tab:CreateToggle(cfg)
+            cfg = cfg or {}
+            local state = cfg.Default == true
+            local r = row(48)
+            local l = label(r, cfg.Name or "Toggle", 13, C.Text, Enum.Font.GothamSemibold)
+            l.Position, l.Size = UDim2.fromOffset(13, 0), UDim2.new(1, -75, 1, 0)
+            local sw = make("TextButton", {AutoButtonColor = false, Text = "", Position = UDim2.new(1, -55, 0.5, -11), Size = UDim2.fromOffset(42, 22), BackgroundColor3 = state and C.RedBright or C.Border, BorderSizePixel = 0}, r)
+            round(sw, 12)
+            local knob = make("Frame", {Position = state and UDim2.new(1, -19, 0, 3) or UDim2.fromOffset(3, 3), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = C.Text, BorderSizePixel = 0}, sw)
+            round(knob, 9)
+            local function set(v)
+                state = v
+                tw(sw, {BackgroundColor3 = state and C.RedBright or C.Border})
+                tw(knob, {Position = state and UDim2.new(1, -19, 0, 3) or UDim2.fromOffset(3, 3)})
+                if cfg.Callback then task.spawn(cfg.Callback, state) end
+            end
+            sw.MouseButton1Click:Connect(function() set(not state) end)
+            return {Frame = r, Set = set, Get = function() return state end}
+        end
+
+        function Tab:CreateSlider(cfg)
+            cfg = cfg or {}
+            local min, max = tonumber(cfg.Min) or 0, tonumber(cfg.Max) or 100
+            local value = math.clamp(tonumber(cfg.Default) or min, min, max)
+            local r = row(66)
+            local l = label(r, cfg.Name or "Slider", 13, C.Text, Enum.Font.GothamSemibold)
+            l.Position, l.Size = UDim2.fromOffset(13, 6), UDim2.new(1, -75, 0, 22)
+            local vl = label(r, tostring(value), 12, C.RedBright, Enum.Font.GothamBold)
+            vl.TextXAlignment, vl.Position, vl.Size = Enum.TextXAlignment.Right, UDim2.new(1, -54, 0, 6), UDim2.fromOffset(40, 22)
+            local bar = make("Frame", {Position = UDim2.new(0, 13, 0, 41), Size = UDim2.new(1, -26, 0, 5), BackgroundColor3 = C.Border, BorderSizePixel = 0}, r)
+            round(bar, 5)
+            local ratio = (value - min) / math.max(max - min, 1)
+            local fill = make("Frame", {Size = UDim2.new(ratio, 0, 1, 0), BackgroundColor3 = C.RedBright, BorderSizePixel = 0}, bar)
+            round(fill, 5)
+            local knob = make("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(ratio, 0, 0.5, 0), Size = UDim2.fromOffset(13, 13), BackgroundColor3 = C.Text, BorderSizePixel = 0}, bar)
+            round(knob, 8)
+            local dragging = false
+            local function setX(x)
+                local p = math.clamp((x - bar.AbsolutePosition.X) / math.max(bar.AbsoluteSize.X, 1), 0, 1)
+                value = math.floor(min + (max - min) * p + 0.5)
+                vl.Text, fill.Size, knob.Position = tostring(value), UDim2.new(p, 0, 1, 0), UDim2.new(p, 0, 0.5, 0)
+                if cfg.Callback then task.spawn(cfg.Callback, value) end
+            end
+            bar.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; setX(i.Position.X) end
+            end)
+            UserInputService.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then setX(i.Position.X) end
+            end)
+            UserInputService.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+            return {Frame = r, Get = function() return value end}
+        end
+
+        function Tab:CreateDropdown(cfg)
+            cfg = cfg or {}
+            local values, selected = cfg.Values or {}, cfg.Default
+            selected = selected or values[1] or "Select"
+            local r = row(48)
+            local l = label(r, cfg.Name or "Dropdown", 13, C.Text, Enum.Font.GothamSemibold)
+            l.Position, l.Size = UDim2.fromOffset(13, 0), UDim2.new(0.42, -8, 1, 0)
+            local b = button(r, tostring(selected) .. "  ▾", UDim2.new(0.52, -12, 0, 30), UDim2.new(0.48, 0, 0.5, -15))
+            local menu
+            b.MouseButton1Click:Connect(function()
+                if menu then menu:Destroy(); menu = nil; return end
+                menu = make("Frame", {Position = UDim2.new(0, 0, 1, 4), Size = UDim2.new(1, 0, 0, math.min(#values * 31 + 8, 132)), BackgroundColor3 = C.BG, BorderSizePixel = 0, ZIndex = 20}, r)
+                round(menu, 9); outline(menu)
+                make("UIListLayout", {Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder}, menu)
+                make("UIPadding", {PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4)}, menu)
+                for i, option in ipairs(values) do
+                    local choice = make("TextButton", {AutoButtonColor = false, Text = tostring(option), TextColor3 = C.Text, TextSize = 12, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, BackgroundColor3 = C.Panel, Size = UDim2.new(1, 0, 0, 27), LayoutOrder = i, BorderSizePixel = 0, ZIndex = 21}, menu)
+                    round(choice, 6); make("UIPadding", {PaddingLeft = UDim.new(0, 8)}, choice)
+                    choice.MouseButton1Click:Connect(function()
+                        selected = option; b.Text = tostring(selected) .. "  ▾"
+                        if menu then menu:Destroy(); menu = nil end
+                        if cfg.Callback then task.spawn(cfg.Callback, selected) end
+                    end)
+                end
+            end)
+            return {Frame = r, Get = function() return selected end}
+        end
+
+        function Tab:CreateTextbox(cfg)
+            cfg = cfg or {}
+            local r = row(58)
+            local l = label(r, cfg.Name or "", 12, C.Text, Enum.Font.GothamSemibold)
+            l.Position, l.Size = UDim2.fromOffset(13, 3), UDim2.new(1, -26, 0, 18)
+            local box = make("TextBox", {ClearTextOnFocus = false, Text = cfg.Default or "", PlaceholderText = cfg.Placeholder or "Enter text...", PlaceholderColor3 = C.Muted, TextColor3 = C.Text, TextSize = 12, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(11, 26), Size = UDim2.new(1, -22, 0, 25), BackgroundColor3 = C.BG, BorderSizePixel = 0}, r)
+            round(box, 7); outline(box, C.Border, 0.25)
+            make("UIPadding", {PaddingLeft = UDim.new(0, 9)}, box)
+            box.FocusLost:Connect(function(enter) if cfg.Callback then task.spawn(cfg.Callback, box.Text, enter) end end)
+            return {Frame = r, Input = box}
+        end
+
+        if not activeTab then selectTab(name) end
+        return Tab
+    end
+
+    function Window:SelectTab(name) if pages[name] then selectTab(name) end end
+    function Window:SetTitle(value)
+        title = tostring(value or "MellWare")
+        wmTitle.Text = title
+        crumb.Text = title .. " / " .. (activeTab or "Dashboard")
+    end
+
+    local minimized = false
+    collapse.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        if minimized then
+            tw(main, {Size = UDim2.fromOffset(590, 67)})
+            holder.Visible, sidebar.Visible, pageTitle.Visible = false, false, false
+            collapse.Text = "+"
+        else
+            sidebar.Visible, holder.Visible, pageTitle.Visible = true, true, true
+            tw(main, {Size = UDim2.fromOffset(590, 380)})
+            collapse.Text = "—"
+        end
+    end)
+
+    draggable(main, top)
+    draggable(watermark, watermark)
+
+    if options.KeySystem then
+        main.Visible, watermark.Visible = false, false
+        local gate = make("Frame", {Name = "MellWareKey", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(330, 185), BackgroundColor3 = C.BG, BorderSizePixel = 0}, screen)
+        round(gate, 16); outline(gate, C.RedDark)
+        local gt = label(gate, title, 19, C.Text, Enum.Font.GothamBold)
+        gt.Position, gt.Size = UDim2.fromOffset(18, 14), UDim2.new(1, -36, 0, 28)
+        local sub = label(gate, "Enter your access key", 12, C.Muted)
+        sub.Position, sub.Size = UDim2.fromOffset(18, 43), UDim2.new(1, -36, 0, 20)
+        local key = make("TextBox", {ClearTextOnFocus = false, PlaceholderText = "Key...", Text = "", TextColor3 = C.Text, PlaceholderColor3 = C.Muted, TextSize = 13, Font = Enum.Font.GothamMedium, Position = UDim2.fromOffset(18, 72), Size = UDim2.new(1, -36, 0, 36), BackgroundColor3 = C.Panel, BorderSizePixel = 0}, gate)
+        round(key, 9); outline(key)
+        make("UIPadding", {PaddingLeft = UDim.new(0, 10)}, key)
+        local check = button(gate, "Check Key", UDim2.new(0.5, -23, 0, 34), UDim2.fromOffset(18, 122))
+        check.BackgroundColor3 = C.RedDark
+        local get = button(gate, "Get Key", UDim2.new(0.5, -23, 0, 34), UDim2.new(0.5, 5, 0, 122))
+        local msg = label(gate, "", 11, C.RedBright)
+        msg.Position, msg.Size = UDim2.fromOffset(18, 158), UDim2.new(1, -36, 0, 18)
+        check.MouseButton1Click:Connect(function()
+            if key.Text == (options.Key or "MellWareKey") then
+                msg.TextColor3, msg.Text = C.Green, "Key accepted"
+                task.delay(1, function()
+                    if gate.Parent then gate:Destroy(); watermark.Visible = true; main.Visible = true end
+                end)
+            else
+                msg.TextColor3, msg.Text = C.RedBright, "Invalid key"
+            end
+        end)
+        get.MouseButton1Click:Connect(function()
+            msg.Text = options.GetKeyText or "Check the configured key link."
+            if options.GetKeyUrl then pcall(function() game:GetService("GuiService"):OpenBrowserWindow(options.GetKeyUrl) end) end
+        end)
+    end
+
+    return Window
+end
+
+return MellWare
